@@ -4,7 +4,6 @@ package prerender
 
 import (
 	"compress/gzip"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -51,7 +50,7 @@ func (o *Options) NewPrerender() *Prerender {
 
 // ServeHTTP allows Prerender to act as a Negroni middleware.
 func (p *Prerender) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-	fmt.Println("Prerender")
+	//fmt.Println("Prerender")
 	if p.ShouldPrerender(r) {
 		p.PreRenderHandler(rw, r)
 	} else if next != nil {
@@ -62,7 +61,7 @@ func (p *Prerender) ServeHTTP(rw http.ResponseWriter, r *http.Request, next http
 // ShouldPrerender analyzes the request to determine whether it should be routed
 // to a Prerender.io upstream server.
 func (p *Prerender) ShouldPrerender(or *http.Request) bool {
-	fmt.Println(or)
+	//fmt.Println(or)
 	userAgent := strings.ToLower(or.Header.Get("User-Agent"))
 	bufferAgent := or.Header.Get("X-Bufferbot")
 	isRequestingPrerenderedPage := false
@@ -86,7 +85,13 @@ func (p *Prerender) ShouldPrerender(or *http.Request) bool {
 	}
 
 	// Buffer Agent or requesting an excaped fragment, request prerender
-	if bufferAgent != "" || or.URL.Query().Get("_escaped_fragment_") != "" {
+
+	// Trying to use or.URL.Query().Get("_escaped_fragment_") here will fail
+	// for root paths or when using html 5 history API combined with
+	// the meta 'fragment' tag because the value of the variable will be the
+	// empty strings, which is otherwise indistinguishable from the parameter
+	// being completely absent.
+	if bufferAgent != "" || strings.Contains(or.URL.RawQuery, "_escaped_fragment_=") {
 		isRequestingPrerenderedPage = true
 	}
 
@@ -177,7 +182,7 @@ func (p *Prerender) PreRenderHandler(rw http.ResponseWriter, or *http.Request) {
 
 	res, err := client.Do(req)
 
-	fmt.Println(res)
+	//fmt.Println(res)
 	e.Check(err)
 
 	rw.Header().Set("Content-Type", res.Header.Get("Content-Type"))
